@@ -6,11 +6,20 @@ ifeq ($(CP),)
   CP=cp
 endif
 
+ERICSTOOLS_DIR:=./ericstools
 CFLAGS:=$(CFLAGS) -Wall -Os
-LIBS:=-lmbedtls -lmbedx509 -lmbedcrypto -lericstools
+LIBS:=-lmbedtls -lmbedx509 -lmbedcrypto
 STATIC_OBJS:=mbedtlsclu_common.o
 #DEFS:=-DDEBUG -DOPENSSL_ENV_CONF_COMPAT
 DEFS:=-DOPENSSL_ENV_CONF_COMPAT
+
+#Set 0 to link to ericstools instead of compiling as static
+#STATIC_LIBS:=1
+ifeq ($(STATIC_LIBS),1)
+	STATIC_OBJS:=$(STATIC_OBJS) libericstools.a
+else
+	LIBS:=$(LIBS) -lericstools
+endif
 
 #all: mbedtlsclu_common.o x509write_crl.o dhparam genpkey rand req ca
 all: mbedtlsclu_common.o x509write_crl.o dhparam.o genpkey.o rand.o req.o ca.o x509.o mbedtls-clu
@@ -62,5 +71,11 @@ mbedtls-clu: mbedtls-clu.o $(STATIC_OBJS) ca.o dhparam.o genpkey.o rand.o req.o 
 mbedtls-clu.o: mbedtls-clu.c $(STATIC_OBJS)
 	$(CC) $(CFLAGS) $(DEFS) -c mbedtls-clu.c -o $@
 
+libericstools.a:
+	make -C $(ERICSTOOLS_DIR)
+	$(CP) $(ERICSTOOLS_DIR)/libericstools.a .
+	$(CP) $(ERICSTOOLS_DIR)/erics_tools.h .
+
 clean:
-	rm -rf *.o *.a *~ .*sw* mbedtlsclu_common x509write_crl dhparam genpkey rand req ca x509 mbedtls-clu
+	if [ -e "$(ERICSTOOLS_DIR)" ] && [ -n "$(ERICSTOOLS_DIR)" ] ; then make -C $(ERICSTOOLS_DIR) clean ; fi
+	rm -rf *.o *.a *~ .*sw* erics_tools.h mbedtlsclu_common x509write_crl dhparam genpkey rand req ca x509 mbedtls-clu
