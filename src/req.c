@@ -46,33 +46,34 @@
 #define DFL_VERSION				MBEDTLS_X509_CRT_VERSION_3
 
 #define USAGE \
-    "\n usage: req [options]\n"																				\
-    "\n\n General options:\n"																				\
-    "    -help					Display this summary\n"														\
-    "    -config infile			Filepath to config file\n"													\
-    "							NOTE: Command line parameters will override any config file equivalents\n"	\
-    "							Config file can also be set through environment variables\n"				\
-    "							NOTE: Environment variable config file will override command line\n"		\
-	"    -in infile				X.509 request input file\n"													\
-	"\n\n Certificate options:\n"																			\
-    "    -new					New request\n"																\
-    "    -x509					Output an X.509 certificate structure instead of a cert request\n"			\
-    "    -days +int				Number of days the cert is valid for\n"										\
-    "    -set_serial val		Serial number to use\n"														\
-    "\n"																									\
-    "    -subj val				Set or modify subject of request or cert\n"									\
-	"\n\n Key and signing options:\n"																		\
-    "    -key val				Key for signing\n"															\
-    "    -passin val			Private key and certificate password source\n"								\
-    "    -newkey val			Generate new key with [<alg>:]<nbits> or <alg>[:<file>] or param:<file>\n"	\
-    "    -keyout outfile		File to write private key to\n"												\
-	"\n\n Output options:\n"																				\
-	"    -out outfile			Output file\n"																\
-	"    -outform PEM|DER		Output format (DER or PEM)\n"												\
-	"    -text					Print the certificate request in text\n"									\
-	"    -*						Message Digest (MD) (default SHA256)\n"										\
-	"								possible values:\n"														\
-	"								MD2, MD4, MD5, RIPEMD160, SHA1\n"										\
+    "\n usage: req [options]\n"																											\
+    "\n\n General options:\n"																											\
+    "    -help					Display this summary\n"																					\
+    "    -config infile			Filepath to config file\n"																				\
+    "							NOTE: Command line parameters will override any config file equivalents\n"								\
+    "							Config file can also be set through environment variables\n"											\
+    "							NOTE: Environment variable config file will override command line\n"									\
+	"    -in infile				X.509 request input file\n"																				\
+	"\n\n Certificate options:\n"																										\
+    "    -new					New request\n"																							\
+    "    -x509					Output an X.509 certificate structure (Default: Version 3) instead of a cert request\n"					\
+    "    -x509v1				Output an X.509 certificate structure in version 1 format. Implies -x509\n"								\
+    "    -days +int				Number of days the cert is valid for\n"																	\
+    "    -set_serial val		Serial number to use\n"																					\
+    "\n"																																\
+    "    -subj val				Set or modify subject of request or cert\n"																\
+	"\n\n Key and signing options:\n"																									\
+    "    -key val				Key for signing\n"																						\
+    "    -passin val			Private key and certificate password source\n"															\
+    "    -newkey val			Generate new key with [<alg>:]<nbits> or <alg>[:<file>] or param:<file>\n"								\
+    "    -keyout outfile		File to write private key to\n"																			\
+	"\n\n Output options:\n"																											\
+	"    -out outfile			Output file\n"																							\
+	"    -outform PEM|DER		Output format (DER or PEM)\n"																			\
+	"    -text					Print the certificate request in text\n"																\
+	"    -*						Message Digest (MD) (default SHA256)\n"																	\
+	"								possible values:\n"																					\
+	"								MD2, MD4, MD5, RIPEMD160, SHA1\n"																	\
 	"								SHA224, SHA256, SHA384, SHA512\n"
 
 #if !defined(MBEDTLS_X509_CSR_WRITE_C) || !defined(MBEDTLS_FS_IO) ||  \
@@ -201,6 +202,8 @@ int req_main(int argc, char** argv, int argi)
 	char* csr_infile = NULL;
 	int noout = 0;
 	
+	int version = DFL_VERSION;
+	
 	conf_req_csr_parameters req_params;
 	initialise_conf_req_csr_parameters(&req_params);
 	
@@ -269,6 +272,14 @@ usage:
 		else if(strcmp(p,"-x509") == 0)
 		{
 			// We are doing a Cert not a Cert Req
+			reqtype = REQ_TYPE_CRT;
+		}
+		else if(strcmp(p,"-x509v1") == 0)
+		{
+			// Output a Version 1 certificate
+			// If any extensions are added, this setting is ignored and V3 is used
+			version = MBEDTLS_X509_CRT_VERSION_1;
+			// Imply -x509
 			reqtype = REQ_TYPE_CRT;
 		}
 		else if(strcmp(p,"-days") == 0 && i + 1 < argc)
@@ -743,7 +754,6 @@ usage:
 		mbedtls_x509write_cert crt;
 		mbedtls_mpi serial;
 		char* serialval = NULL;
-		int version = DFL_VERSION;
 		int days = 0;
 		char time_notbefore[256];
 		char time_notafter[256];
@@ -863,6 +873,21 @@ usage:
 
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Setting certificate values ...");
 		fflush(stdout);
+
+		// Check if version must be promoted
+		if(version == MBEDTLS_X509_CRT_VERSION_1 && (
+			req_params.authority_key_identifier != NULL ||
+			req_params.subject_key_identifier != NULL ||
+			req_params.key_usage != NULL ||
+			req_params.basic_contraints != NULL ||
+			req_params.extended_key_usage != NULL ||
+			req_params.ns_cert_type != NULL
+			)
+		)
+		{
+			mbedtlsclu_prio_printf(MBEDTLSCLU_DEBUG,"Version promoted from 1 to 3 due to 1 (or more) extensions requested\n");
+			version = MBEDTLS_X509_CRT_VERSION_3;
+		}
 
 		mbedtls_x509write_crt_set_version(&crt, version);
 		mbedtls_x509write_crt_set_md_alg(&crt, md_alg);
