@@ -410,8 +410,18 @@ usage:
 			goto exit;
 		}
 		
+		// Copy DHM params into public variables
+		if ((ret = mbedtls_dhm_get_value(&dhm, MBEDTLS_DHM_PARAM_P, &P)) != 0) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_dhm_get_value MBEDTLS_DHM_PARAM_P returned %d\n", ret);
+			goto exit;
+		}
+		if ((ret = mbedtls_dhm_get_value(&dhm, MBEDTLS_DHM_PARAM_G, &G)) != 0) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_dhm_get_value MBEDTLS_DHM_PARAM_G returned %d\n", ret);
+			goto exit;
+		}
+		
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM modulus P size...");
-		int n = mbedtls_mpi_bitlen(&dhm.P);
+		int n = mbedtls_mpi_bitlen(&P);
 		if (n < 512 || n > 10000) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! Invalid DHM modulus size\n\n");
 			mbedtls_printf("DH parameters not OK\n");
@@ -419,7 +429,7 @@ usage:
 		}
 		
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking P is (probably) prime...");
-		n = mbedtls_mpi_get_bit(&dhm.P, 0);
+		n = mbedtls_mpi_get_bit(&P, 0);
 		if(n != 1)
 		{
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_get_bit returned %d\n\n", n);
@@ -429,14 +439,14 @@ usage:
 		
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM generator G is suitable...");
 		// Must be > 1
-		if ((ret = mbedtls_mpi_cmp_int(&dhm.G, 1)) <= 0) {
+		if ((ret = mbedtls_mpi_cmp_int(&G, 1)) <= 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_int returned %d\n\n", ret);
 			mbedtls_printf("DH parameters not OK\n");
 			goto exit;
 		}
 		
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM modulus P > generator G...");
-		if ((ret = mbedtls_mpi_cmp_mpi(&dhm.P, &dhm.G)) <= 0) {
+		if ((ret = mbedtls_mpi_cmp_mpi(&P, &G)) <= 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_mpi returned %d\n\n", ret);
 			mbedtls_printf("DH parameters not OK\n");
 			goto exit;

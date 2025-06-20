@@ -82,7 +82,8 @@ int print_mpi_hex_text(mbedtls_mpi* X, char* heading)
 	if(slen % 8 == 0 && s[0] != '0')
 	{
 		// Need to prepend leading sign byte
-		mbedtls_printf("%s:",(X->s == 1 ? "00" : "01"));
+		int cmp = mbedtls_mpi_cmp_int(X, 0);
+		mbedtls_printf("%s:",(cmp >= 0 ? "00" : "01"));
 		skip = 2;
 	}
 	if((ret = print_hex_text(s, skip)) != 0)
@@ -600,7 +601,7 @@ int x509_name_cmp(const mbedtls_x509_name *a, const mbedtls_x509_name *b)
         }
 
         /* structure of the list of sets */
-        if (a->next_merged != b->next_merged) {
+        if (a->MBEDTLS_PRIVATE(next_merged) != b->MBEDTLS_PRIVATE(next_merged)) {
             return -1;
         }
 

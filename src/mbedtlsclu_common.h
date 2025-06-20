@@ -19,13 +19,9 @@
 #ifndef MBEDTLSCLU_COMMON
 #define MBEDTLSCLU_COMMON
 
-#define MBEDTLSCLU_VERSION	"1.0.2"
+#define MBEDTLSCLU_VERSION	"1.1.0"
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include <mbedtls/build_info.h>
 
 #include "mbedtls/platform.h"
 

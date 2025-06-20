@@ -933,7 +933,7 @@ usage:
 		fflush(stdout);
 
 		ret = mbedtls_pk_parse_keyfile(&loaded_issuer_key, key_filein,
-									   key_passin);
+									   key_passin, mbedtls_ctr_drbg_random, &ctr_drbg);
 		if (ret != 0) {
 			mbedtls_strerror(ret, buf, 1024);
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  mbedtls_pk_parse_keyfile "
@@ -943,7 +943,8 @@ usage:
 
 		// Check if key and issuer certificate match
 		//
-		if (mbedtls_pk_check_pair(&issuer_crt.pk, issuer_key) != 0) {
+		if (mbedtls_pk_check_pair(&issuer_crt.pk, issuer_key,
+									mbedtls_ctr_drbg_random, &ctr_drbg) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  issuer_key does not match "
 						   "issuer certificate\n\n");
 			goto exit;
@@ -1129,7 +1130,7 @@ usage:
 		fflush(stdout);
 
 		ret = mbedtls_pk_parse_keyfile(&loaded_issuer_key, key_filein,
-									   key_passin);
+									   key_passin, mbedtls_ctr_drbg_random, &ctr_drbg);
 		if (ret != 0) {
 			mbedtls_strerror(ret, buf, 1024);
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  mbedtls_pk_parse_keyfile "
@@ -1139,7 +1140,8 @@ usage:
 
 		// Check if key and issuer certificate match
 		//
-		if (mbedtls_pk_check_pair(&issuer_crt.pk, issuer_key) != 0) {
+		if (mbedtls_pk_check_pair(&issuer_crt.pk, issuer_key,
+									mbedtls_ctr_drbg_random, &ctr_drbg) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  issuer_key does not match "
 						   "issuer certificate\n\n");
 			goto exit;
@@ -1173,6 +1175,14 @@ usage:
 			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Checking for unique subjects ...\n");
 			// Database says we should be looking at a unique subject
 			mbedtlsclu_prio_printf(MBEDTLSCLU_DEBUG,"subject_name: %s\n",subject_name);
+			// Try to suck this into the right datatype
+			mbedtls_asn1_named_data* subject_name_temp = NULL;
+			if((ret = mbedtls_x509_string_to_names(&subject_name_temp,subject_name)) != 0)
+			{
+				// This should never happen... but let's be careful
+				mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  crt.subject could not be parsed as valid\n");
+				goto exit;
+			}
 			for(int x = 0; x < ca_database_count; x++)
 			{
 				mbedtlsclu_prio_printf(MBEDTLSCLU_DEBUG,"db[%d]: dn: %s\n",x,ca_database.ca_database_entries[x].dn);
@@ -1197,7 +1207,7 @@ usage:
 					goto exit;
 				}
 				
-				if((ret = x509_name_cmp(dntmp, crt.subject)) == 0)
+				if((ret = x509_name_cmp(dntmp, subject_name_temp)) == 0)
 				{
 					// Uh oh...
 					mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  subject_name was already found in the ca_database\n");
@@ -1206,6 +1216,7 @@ usage:
 
 				mbedtls_asn1_free_named_data_list(&dntmp);
 			}
+			mbedtls_asn1_free_named_data_list(&subject_name_temp);
 		}
 		
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Setting certificate values ...");

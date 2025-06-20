@@ -16,11 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include <mbedtls/build_info.h>
 
 #include "mbedtls/platform.h"
 
@@ -33,6 +29,8 @@
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/x509_crl.h"
 #include "mbedtls/asn1write.h"
+
+#include "x509_create.h"
 
 #include <stdio.h>
 #include <stdlib.h>

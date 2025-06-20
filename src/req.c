@@ -708,7 +708,8 @@ usage:
     mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Loading the private key ...");
     fflush(stdout);
 
-    ret = mbedtls_pk_parse_keyfile(&key, key_filein, key_passin);
+    ret = mbedtls_pk_parse_keyfile(&key, key_filein, key_passin,
+									mbedtls_ctr_drbg_random, &ctr_drbg);
 
     if (ret != 0) {
         mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  !  mbedtls_pk_parse_keyfile returned %d", ret);

@@ -135,6 +135,39 @@ int genpkey_main(void)
 }
 #else
 
+static int mbedtls_ecp_point_get_coordinates(const mbedtls_ecp_group *grp,
+                                      const mbedtls_ecp_point *pt,
+                                      mbedtls_mpi *X,
+                                      mbedtls_mpi *Y,
+                                      mbedtls_mpi *Z /* optional, can be NULL */)
+{
+    int ret = 0;
+    unsigned char buf[MBEDTLS_ECP_MAX_PT_LEN];
+    size_t olen = 0;
+    size_t coord_len = (grp->pbits + 7) / 8;
+
+    if ((ret = mbedtls_ecp_point_write_binary(grp, pt,
+                  MBEDTLS_ECP_PF_UNCOMPRESSED, &olen, buf, sizeof(buf))) != 0) {
+        return ret;
+    }
+
+    // Ensure the buffer contains expected format
+    if (olen != 1 + 2 * coord_len || buf[0] != 0x04) {
+        return MBEDTLS_ERR_ECP_BAD_INPUT_DATA;
+    }
+
+    if ((ret = mbedtls_mpi_read_binary(X, buf + 1, coord_len)) != 0 ||
+        (ret = mbedtls_mpi_read_binary(Y, buf + 1 + coord_len, coord_len)) != 0) {
+        return ret;
+    }
+
+    // If Z is requested, set it to 1 (normal form)
+    if (Z != NULL)
+        mbedtls_mpi_lset(Z, 1);
+
+    return 0;
+}
+
 static int print_mpi_ec_pub_hex_text(mbedtls_mpi* X, mbedtls_mpi* Y, char* heading, int format)
 {
 	int ret = 0;
@@ -273,16 +306,43 @@ static int write_private_key(mbedtls_pk_context *key, int textout, int format, c
 		}
 		else if(mbedtls_pk_get_type(key) == MBEDTLS_PK_ECKEY)
 		{
+			mbedtls_ecp_group grp;
+			mbedtls_mpi d, X, Y;
+			mbedtls_ecp_point Q;
+			mbedtls_mpi_init(&d);
+			mbedtls_mpi_init(&X);
+			mbedtls_mpi_init(&Y);
+			mbedtls_ecp_group_init(&grp);
+			mbedtls_ecp_point_init(&Q);
 			mbedtls_ecp_keypair* ecp = mbedtls_pk_ec(*key);
-			mbedtls_ecp_curve_info* curveinfo = mbedtls_ecp_curve_info_from_grp_id(ecp->grp.id);
+			
+			if((ret = mbedtls_ecp_export(ecp, &grp, &d, &Q)) != 0)
+			{
+				mbedtls_mpi_free(&d);
+				return ret;
+			}
+			
+			mbedtls_ecp_curve_info* curveinfo = mbedtls_ecp_curve_info_from_grp_id(grp.id);
 
 			mbedtls_printf("Private-Key: (%u bit)\n", (unsigned int)(curveinfo->bit_size));
-			if((ret = print_mpi_hex_text(&ecp->d, "priv")) != 0)
+			if((ret = print_mpi_hex_text(&d, "priv")) != 0)
+			{
+				mbedtls_mpi_free(&d);
+				return ret;
+			}
+			
+			mbedtls_mpi_free(&d);
+			
+			if((ret = mbedtls_ecp_point_get_coordinates(&grp, &Q, &X, &Y, NULL)) != 0)
 			{
 				return ret;
 			}
-			if((ret = print_mpi_ec_pub_hex_text(&ecp->Q.X, &ecp->Q.Y, "pub", EC_PUB_FORMAT_UNCOMPRESSED)) != 0)
+			mbedtls_ecp_point_free(&Q);
+			
+			if((ret = print_mpi_ec_pub_hex_text(&X, &Y, "pub", EC_PUB_FORMAT_UNCOMPRESSED)) != 0)
 			{
+				mbedtls_mpi_free(&X);
+				mbedtls_mpi_free(&Y);
 				return ret;
 			}
 			mbedtls_printf("ASN1 OID: %s\n", curveinfo->name);
@@ -299,6 +359,8 @@ static int write_private_key(mbedtls_pk_context *key, int textout, int format, c
 			{
 				mbedtls_printf("NIST CURVE: %s", "P-256");
 			}
+			mbedtls_mpi_free(&X);
+			mbedtls_mpi_free(&Y);
 		}
 	}
 

@@ -22,9 +22,12 @@ else
 endif
 
 #all: mbedtlsclu_common.o x509write_crl.o dhparam genpkey rand req ca
-all: mbedtlsclu_common.o x509write_crl.o dhparam.o genpkey.o rand.o req.o ca.o x509.o mbedtls-clu
+all: mbedtlsclu_common.o x509_create.o x509write_crl.o dhparam.o genpkey.o rand.o req.o ca.o x509.o mbedtls-clu
 mbedtlsclu_common.o: mbedtlsclu_common.c
 	$(CC) $(CFLAGS) $(DEFS) -c mbedtlsclu_common.c -o $@
+
+x509_create.o: x509_create.c
+	$(CC) $(CFLAGS) $(DEFS) -c x509_create.c -o $@
 
 x509write_crl.o: x509write_crl.c
 	$(CC) $(CFLAGS) $(DEFS) -c x509write_crl.c -o $@
@@ -65,7 +68,7 @@ ca.o: ca.c $(STATIC_OBJS)
 x509.o: x509.c $(STATIC_OBJS)
 	$(CC) $(CFLAGS) $(DEFS) -c x509.c -o $@
 
-mbedtls-clu: mbedtls-clu.o $(STATIC_OBJS) ca.o dhparam.o genpkey.o rand.o req.o x509.o x509write_crl.o
+mbedtls-clu: mbedtls-clu.o $(STATIC_OBJS) ca.o dhparam.o genpkey.o rand.o req.o x509.o x509_create.o x509write_crl.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 mbedtls-clu.o: mbedtls-clu.c $(STATIC_OBJS)
@@ -78,4 +81,4 @@ libericstools.a:
 
 clean:
 	if [ -e "$(ERICSTOOLS_DIR)" ] && [ -n "$(ERICSTOOLS_DIR)" ] ; then make -C $(ERICSTOOLS_DIR) clean ; fi
-	rm -rf *.o *.a *~ .*sw* erics_tools.h mbedtlsclu_common x509write_crl dhparam genpkey rand req ca x509 mbedtls-clu
+	rm -rf *.o *.a *~ .*sw* erics_tools.h mbedtlsclu_common x509write_crl x509_create dhparam genpkey rand req ca x509 mbedtls-clu

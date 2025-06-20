@@ -104,7 +104,7 @@ int mbedtls_x509write_crl_set_authority_key_identifier(mbedtls_x509write_crl *ct
     MBEDTLS_ASN1_CHK_ADD(len,
                          mbedtls_pk_write_pubkey(&c, buf, ctx->issuer_key));
 
-    ret = mbedtls_sha1_ret(buf + sizeof(buf) - len, len,
+    ret = mbedtls_sha1(buf + sizeof(buf) - len, len,
 						buf + sizeof(buf) - 20);
 
     if (ret != 0) {
@@ -418,7 +418,7 @@ int mbedtls_x509write_crl_der(mbedtls_x509write_crl *ctx,
 #endif /* MBEDTLS_USE_PSA_CRYPTO */
 
     if ((ret = mbedtls_pk_sign(ctx->issuer_key, ctx->md_alg,
-                               hash, hash_length, sig, &sig_len,
+                               hash, hash_length, sig, sizeof(sig), &sig_len,
                                f_rng, p_rng)) != 0) {
         return ret;
     }
