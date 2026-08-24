@@ -23,13 +23,14 @@ endif
 
 #all: mbedtlsclu_common.o x509write_crl.o dhparam genpkey rand req ca
 all: mbedtlsclu_common.o x509_create.o x509write_crl.o dhparam.o genpkey.o rand.o req.o ca.o x509.o mbedtls-clu
-mbedtlsclu_common.o: mbedtlsclu_common.c
+
+mbedtlsclu_common.o: mbedtlsclu_common.c $(filter libericstools.a,$(STATIC_OBJS))
 	$(CC) $(CFLAGS) $(DEFS) -c mbedtlsclu_common.c -o $@
 
 x509_create.o: x509_create.c
 	$(CC) $(CFLAGS) $(DEFS) -c x509_create.c -o $@
 
-x509write_crl.o: x509write_crl.c
+x509write_crl.o: x509write_crl.c $(filter libericstools.a,$(STATIC_OBJS))
 	$(CC) $(CFLAGS) $(DEFS) -c x509write_crl.c -o $@
 	
 #dhparam: dhparam.o $(STATIC_OBJS)
