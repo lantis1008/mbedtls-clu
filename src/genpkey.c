@@ -403,6 +403,7 @@ int genpkey_main(int argc, char** argv, int argi)
 	
     mbedtls_pk_init(&key);
     mbedtls_ctr_drbg_init(&ctr_drbg);
+    mbedtls_entropy_init(&entropy);
     memset(buf, 0, sizeof(buf));
 	
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
@@ -566,7 +567,6 @@ usage:
 	mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"\n  . Seeding the random number generator...");
 	fflush(stdout);
 
-    mbedtls_entropy_init(&entropy);
 #if defined(MBEDTLS_FS_IO)
     if (use_dev_random) {
         if ((ret = mbedtls_entropy_add_source(&entropy, dev_random_entropy_poll,
