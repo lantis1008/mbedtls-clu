@@ -114,59 +114,6 @@ end_of_export:
     return (int) len;
 }
 
-int mbedtls_pem_write_buffer(const char *header, const char *footer,
-                             const unsigned char *der_data, size_t der_len,
-                             unsigned char *buf, size_t buf_len, size_t *olen)
-{
-    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-    unsigned char *encode_buf = NULL, *c, *p = buf;
-    size_t len = 0, use_len, add_len = 0;
-
-    mbedtls_base64_encode(NULL, 0, &use_len, der_data, der_len);
-    add_len = strlen(header) + strlen(footer) + (((use_len > 2) ? (use_len - 2) : 0) / 64) + 1;
-
-    if (use_len + add_len > buf_len) {
-        *olen = use_len + add_len;
-        return MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL;
-    }
-
-    if (use_len != 0 &&
-        ((encode_buf = mbedtls_calloc(1, use_len)) == NULL)) {
-        return MBEDTLS_ERR_PEM_ALLOC_FAILED;
-    }
-
-    if ((ret = mbedtls_base64_encode(encode_buf, use_len, &use_len, der_data,
-                                     der_len)) != 0) {
-        mbedtls_free(encode_buf);
-        return ret;
-    }
-
-    memcpy(p, header, strlen(header));
-    p += strlen(header);
-    c = encode_buf;
-
-    while (use_len) {
-        len = (use_len > 64) ? 64 : use_len;
-        memcpy(p, c, len);
-        use_len -= len;
-        p += len;
-        c += len;
-        *p++ = '\n';
-    }
-
-    memcpy(p, footer, strlen(footer));
-    p += strlen(footer);
-
-    *p++ = '\0';
-    *olen = (size_t) (p - buf);
-
-    /* Clean any remaining data previously written to the buffer */
-    memset(buf + *olen, 0, buf_len - *olen);
-
-    mbedtls_free(encode_buf);
-    return 0;
-}
-
 /*
  *  DHParams ::= SEQUENCE {					1 + 3
  *      prime			INTEGER,  -- P		1 + 3 + MPI_MAX + 1
