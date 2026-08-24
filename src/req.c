@@ -946,7 +946,7 @@ usage:
 		
 		if(version == MBEDTLS_X509_CRT_VERSION_3)
 		{
-			char key_usage = 0;
+			unsigned int key_usage = 0;
 			char ns_cert_type = 0;
 			if(req_params.basic_contraints != NULL)
 			{
