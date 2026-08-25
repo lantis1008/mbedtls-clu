@@ -158,6 +158,90 @@ int write_certificate_request(mbedtls_x509write_csr *req, int format, const char
     return 0;
 }
 
+/*
+ * Converts an OpenSSL "-subj" style string, e.g.
+ * "/C=GB/O=My Org, Ltd/CN=example.com", into mbedtls's native
+ * "type=value,type=value" comma-separated DN syntax expected by
+ * mbedtls_x509_string_to_names(). OpenSSL's format separates fields with
+ * '/' and escapes a literal '/' or '\' in a value with '\'; mbedtls's
+ * format separates fields with ',' and escapes a literal ',' or '\'.
+ * Naively swapping '/' for ',' would misparse a value containing a literal
+ * comma (which needs no escaping under OpenSSL's own rules, e.g.
+ * "My Org, Ltd" above) as two separate fields, so this walks the string
+ * once, un-escaping OpenSSL's grammar and re-escaping into mbedtls's.
+ *
+ * subj must start with '/'. A trailing '/' is tolerated (matching
+ * OpenSSL). Any segment without a non-empty "type=" before the next '/'
+ * or end of string - including an empty "//" segment - is rejected, since
+ * mbedtls_x509_string_to_names() would reject an empty type or value
+ * anyway; failing here gives a clearer error than a confusing one from
+ * deeper in the X.509 write path. Returns a newly allocated string, or
+ * NULL if subj is malformed.
+ */
+static char* convert_openssl_subj_to_mbedtls_subj(const char* subj)
+{
+	size_t len = strlen(subj);
+	char* out = malloc(2 * len + 1);
+	size_t o = 0;
+	int have_field = 0;
+	size_t i = 1; // skip the leading '/'
+
+	while(i < len)
+	{
+		size_t field_start = i;
+
+		while(i < len && subj[i] != '=' && subj[i] != '/')
+		{
+			i++;
+		}
+
+		if(i >= len || subj[i] != '=' || i == field_start)
+		{
+			free(out);
+			return NULL;
+		}
+
+		if(have_field)
+		{
+			out[o++] = ',';
+		}
+		memcpy(out + o, subj + field_start, i - field_start);
+		o += i - field_start;
+		out[o++] = '=';
+		have_field = 1;
+		i++; // skip '='
+
+		while(i < len && subj[i] != '/')
+		{
+			char c = subj[i];
+			if(c == '\\' && i + 1 < len)
+			{
+				i++;
+				c = subj[i];
+			}
+			if(c == ',' || c == '\\')
+			{
+				out[o++] = '\\';
+			}
+			out[o++] = c;
+			i++;
+		}
+
+		if(i < len && subj[i] == '/')
+		{
+			i++;
+			if(i == len)
+			{
+				// trailing '/' at the very end - tolerated, nothing follows
+				break;
+			}
+		}
+	}
+
+	out[o] = '\0';
+	return out;
+}
+
 int req_main(int argc, char** argv, int argi)
 {
     int ret = 1;
@@ -308,7 +392,21 @@ usage:
 			// argv[i+1] should be the subject value. Advance i
 			i += 1;
 			p = argv[i];
-			subject_name = strdup(p);
+			if(p[0] == '/')
+			{
+				// OpenSSL-style "/type=value/type=value" syntax
+				subject_name = convert_openssl_subj_to_mbedtls_subj(p);
+				if(subject_name == NULL)
+				{
+					mbedtlsclu_prio_printf(MBEDTLSCLU_ERR,"Invalid -subj value: %s\n", p);
+					goto usage;
+				}
+			}
+			else
+			{
+				// mbedtls-native "type=value,type=value" syntax
+				subject_name = strdup(p);
+			}
 		}
 		else if(strcmp(p,"-key") == 0 && i + 1 < argc)
 		{
