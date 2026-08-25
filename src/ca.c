@@ -810,6 +810,11 @@ usage:
 			goto exit;
 		}
 
+		char* serialbuf_stripped = dynamic_replace(serialbuf, ":", "");
+		strncpy(serialbuf, serialbuf_stripped, sizeof(serialbuf) - 1);
+		serialbuf[sizeof(serialbuf) - 1] = '\0';
+		free(serialbuf_stripped);
+
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n");
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"Serial to be revoked: %s\n",serialbuf);
 		int match = 0;
