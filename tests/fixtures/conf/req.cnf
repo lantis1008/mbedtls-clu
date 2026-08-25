@@ -1,0 +1,22 @@
+# Fixture config for tests/cases/req/05_config_extensions_applied.sh -
+# exercises every [req]/[<dn>]/[<ext>] tag mbedtls-clu's config parser reads
+# (see src/mbedtlsclu_common.c: parse_config_file / parse_x509_extensions).
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ext
+default_md = sha256
+
+[req_distinguished_name]
+countryName_default = GB
+stateOrProvinceName_default = Test State
+localityName_default = Test City
+0.organizationName_default = mbedtls-clu Tests
+organizationalUnitName_default = QA
+commonName_default = conf-test.example.com
+emailAddress_default = qa@example.com
+
+[v3_ext]
+subjectKeyIdentifier = hash
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,digitalSignature,keyCertSign
+nsCertType = server

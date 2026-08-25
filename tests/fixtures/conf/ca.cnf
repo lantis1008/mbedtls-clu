@@ -1,0 +1,35 @@
+# Fixture config for tests/cases/ca/*.sh. Paths are relative - ca test cases
+# run from their own per-case workdir (see tests/lib/framework.sh
+# case_workdir_init) and must create ./index.txt, ./serial, ./newcerts/ etc
+# there before invoking `mbedtls-clu ca -config this-file`.
+#
+# mbedtls-clu's config parser (src/mbedtlsclu_common.c: locate_value) takes
+# values verbatim - it does NOT expand OpenSSL-cnf-style "$dir" references -
+# so every path below is written out literally rather than via $dir.
+[ca]
+default_ca = CA_default
+
+[CA_default]
+dir             = .
+certs           = ./certs
+new_certs_dir   = ./newcerts
+database        = ./index.txt
+serial          = ./serial
+certificate     = ./ca.cert.pem
+private_key     = ./ca.key.pem
+default_days    = 365
+default_md      = sha256
+policy          = policy_any
+x509_extensions = usr_cert
+
+[policy_any]
+countryName             = optional
+stateOrProvinceName     = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[usr_cert]
+basicConstraints = CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment

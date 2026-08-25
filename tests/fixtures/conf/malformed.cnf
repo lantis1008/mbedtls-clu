@@ -1,0 +1,3 @@
+[req
+distinguished_name = this_section_does_not_exist
+x509_extensions = also_missing
