@@ -1,4 +1,4 @@
-/* mbedtlsclu -	Utility lauch header file
+/* enc -	enc Utility header file
  *
  * Copyright © 2024 by Michael Gray <support@lantisproject.com>
  *
@@ -18,11 +18,9 @@
 
 #include "mbedtlsclu_common.h"
 
-#include "ca.h"
-#include "rand.h"
-#include "req.h"
-#include "dhparam.h"
-#include "genpkey.h"
-#include "x509.h"
-#include "crl.h"
-#include "enc.h"
+#include "mbedtls/cipher.h"
+#include "mbedtls/pkcs5.h"
+#include "mbedtls/md.h"
+#include "mbedtls/base64.h"
+
+int enc_main(int argc, char** argv, int argi);
