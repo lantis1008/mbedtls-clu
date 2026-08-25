@@ -19,7 +19,7 @@
 #ifndef MBEDTLSCLU_COMMON
 #define MBEDTLSCLU_COMMON
 
-#define MBEDTLSCLU_VERSION	"1.1.0"
+#define MBEDTLSCLU_VERSION	"1.2.0"
 
 #include <mbedtls/build_info.h>
 
