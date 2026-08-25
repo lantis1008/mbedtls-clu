@@ -226,7 +226,8 @@ int dhparam_main(int argc, char** argv, int argi)
 	int text = 0;
 	char* infile = NULL;
 	int check = 0;
-	
+	int nbits_given = 0;
+
 	mbedtls_mpi_init(&G); mbedtls_mpi_init(&P); mbedtls_mpi_init(&Q);
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_entropy_init(&entropy);
@@ -309,10 +310,11 @@ usage:
 			{
 				goto usage;
 			}
+			nbits_given = 1;
 		}
 	}
-	
-	if((outfile == NULL && !noout && !check) || (check && infile == NULL))
+
+	if(outfile == NULL && !noout && !check)
 	{
 		goto usage;
 	}
@@ -336,82 +338,48 @@ usage:
 	mbedtlsclu_prio_printf(MBEDTLSCLU_DEBUG,"infile: %s\n", infile);
 	mbedtlsclu_prio_printf(MBEDTLSCLU_DEBUG,"check: %d\n", check);
 	
-	if(check)
+	if(infile != NULL && !nbits_given)
 	{
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"Checking DH Params...\n");
+		// Use the existing file's params for everything below (check/text/out)
+		// instead of generating fresh ones.
 		mbedtls_dhm_context dhm;
 		mbedtls_dhm_init(&dhm);
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"\n  . Seeding the random number generator...");
-		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-										 (const unsigned char *) pers,
-										 strlen(pers))) != 0) {
-			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
-			goto exit;
-		}
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Parsing DHM File...");
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Parsing DHM File...");
 		if ((ret = mbedtls_dhm_parse_dhmfile(&dhm, infile)) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_dhm_parse_dhmfile %d\n", ret);
-			mbedtls_printf("DH parameters not OK\n");
+			mbedtls_dhm_free(&dhm);
 			goto exit;
 		}
-		
+
 		// Copy DHM params into public variables
 		if ((ret = mbedtls_dhm_get_value(&dhm, MBEDTLS_DHM_PARAM_P, &P)) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_dhm_get_value MBEDTLS_DHM_PARAM_P returned %d\n", ret);
+			mbedtls_dhm_free(&dhm);
 			goto exit;
 		}
 		if ((ret = mbedtls_dhm_get_value(&dhm, MBEDTLS_DHM_PARAM_G, &G)) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_dhm_get_value MBEDTLS_DHM_PARAM_G returned %d\n", ret);
-			goto exit;
-		}
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM modulus P size...");
-		int n = mbedtls_mpi_bitlen(&P);
-		if (n < 512 || n > 10000) {
-			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! Invalid DHM modulus size\n\n");
-			mbedtls_printf("DH parameters not OK\n");
-			goto exit;
-		}
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking P is (probably) prime...");
-		n = mbedtls_mpi_get_bit(&P, 0);
-		if(n != 1)
-		{
-			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_get_bit returned %d\n\n", n);
-			mbedtls_printf("DH parameters not OK\n");
-			goto exit;
-		}
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM generator G is suitable...");
-		// Must be > 1
-		if ((ret = mbedtls_mpi_cmp_int(&G, 1)) <= 0) {
-			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_int returned %d\n\n", ret);
-			mbedtls_printf("DH parameters not OK\n");
-			goto exit;
-		}
-		
-		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM modulus P > generator G...");
-		if ((ret = mbedtls_mpi_cmp_mpi(&P, &G)) <= 0) {
-			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_mpi returned %d\n\n", ret);
-			mbedtls_printf("DH parameters not OK\n");
+			mbedtls_dhm_free(&dhm);
 			goto exit;
 		}
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n");
-		
+
 		mbedtls_dhm_free(&dhm);
-		
-		mbedtls_printf("DH parameters appear to be OK\n");
 	}
 	else
 	{
+		if(infile != NULL && nbits_given)
+		{
+			mbedtlsclu_prio_printf(MBEDTLSCLU_WARNING,"Warning, input file %s ignored\n", infile);
+		}
+
 		// Set generator value
 		if ((ret = mbedtls_mpi_read_string(&G, 10, gstr)) != 0) {
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_read_string returned %d\n", ret);
 			goto exit;
 		}
-		
+
 		mbedtls_printf("Generating DH parameters, %d bit long safe prime\n", nbits);
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"\n  . Seeding the random number generator...");
 		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
@@ -420,7 +388,7 @@ usage:
 			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
 			goto exit;
 		}
-		
+
 		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Generating the modulus, please wait...");
 		fflush(stdout);
 
@@ -450,46 +418,88 @@ usage:
 			goto exit;
 		}
 
-		if(!noout)
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n");
+	}
+
+	if(check)
+	{
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"Checking DH Params...\n");
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Checking DHM modulus P size...");
+		int n = mbedtls_mpi_bitlen(&P);
+		if (n < 512 || n > 10000) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! Invalid DHM modulus size\n\n");
+			mbedtls_printf("DH parameters not OK\n");
+			goto exit;
+		}
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking P is (probably) prime...");
+		n = mbedtls_mpi_get_bit(&P, 0);
+		if(n != 1)
 		{
-			// Write the values out
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_get_bit returned %d\n\n", n);
+			mbedtls_printf("DH parameters not OK\n");
+			goto exit;
+		}
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM generator G is suitable...");
+		// Must be > 1
+		if ((ret = mbedtls_mpi_cmp_int(&G, 1)) <= 0) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_int returned %d\n\n", ret);
+			mbedtls_printf("DH parameters not OK\n");
+			goto exit;
+		}
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Checking DHM modulus P > generator G...");
+		if ((ret = mbedtls_mpi_cmp_mpi(&P, &G)) <= 0) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_cmp_mpi returned %d\n\n", ret);
+			mbedtls_printf("DH parameters not OK\n");
+			goto exit;
+		}
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n");
+
+		mbedtls_printf("DH parameters appear to be OK\n");
+	}
+
+	if(!noout && outfile != NULL)
+	{
+		// Write the values out
 #ifdef DEBUG
-			// START DEBUG PRINT TO FILE
-			debugoutfile = strdup(outfile);
-			strcat(debugoutfile,".debug");
-			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Exporting the debug values in %s...", debugoutfile);
-			fflush(stdout);
+		// START DEBUG PRINT TO FILE
+		debugoutfile = strdup(outfile);
+		strcat(debugoutfile,".debug");
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Exporting the debug values in %s...", debugoutfile);
+		fflush(stdout);
 
-			if ((fout = fopen(debugoutfile, "wb+")) == NULL) {
-				mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! Could not create %s\n\n",debugoutfile);
-				goto exit;
-			}
+		if ((fout = fopen(debugoutfile, "wb+")) == NULL) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! Could not create %s\n\n",debugoutfile);
+			goto exit;
+		}
 
-			if (((ret = mbedtls_mpi_write_file("P = ", &P, 16, fout)) != 0) ||
-				((ret = mbedtls_mpi_write_file("G = ", &G, 16, fout)) != 0)) {
-				mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_write_file returned %d\n\n", ret);
-				fclose(fout);
-				goto exit;
-			}
-
-			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n\n");
+		if (((ret = mbedtls_mpi_write_file("P = ", &P, 16, fout)) != 0) ||
+			((ret = mbedtls_mpi_write_file("G = ", &G, 16, fout)) != 0)) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! mbedtls_mpi_write_file returned %d\n\n", ret);
 			fclose(fout);
-			// END DEBUG PRINT TO FILE
+			goto exit;
+		}
+
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n\n");
+		fclose(fout);
+		// END DEBUG PRINT TO FILE
 #endif
 
-			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . Exporting the values in %s...", outfile);
-			fflush(stdout);
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . Exporting the values in %s...", outfile);
+		fflush(stdout);
 
-			if((ret = write_dhm_params(&G, &P, text, output_format, outfile)) != 0) {
-				mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! write_dhm_params returned %d\n\n", ret);
-				goto exit;
-			}
-			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n\n");
+		if((ret = write_dhm_params(&G, &P, text, output_format, outfile)) != 0) {
+			mbedtlsclu_prio_printf(MBEDTLSCLU_ERR," failed\n  ! write_dhm_params returned %d\n\n", ret);
+			goto exit;
 		}
-		else
-		{
-			mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n  . No Out requested...\n");
-		}
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO," ok\n\n");
+	}
+	else
+	{
+		mbedtlsclu_prio_printf(MBEDTLSCLU_INFO,"  . No Out requested...\n");
 	}
 
     exit_code = MBEDTLS_EXIT_SUCCESS;
