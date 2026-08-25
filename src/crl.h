@@ -1,4 +1,4 @@
-/* mbedtlsclu -	Utility lauch header file
+/* crl -	crl Utility header file
  *
  * Copyright © 2024 by Michael Gray <support@lantisproject.com>
  *
@@ -18,10 +18,9 @@
 
 #include "mbedtlsclu_common.h"
 
-#include "ca.h"
-#include "rand.h"
-#include "req.h"
-#include "dhparam.h"
-#include "genpkey.h"
-#include "x509.h"
-#include "crl.h"
+#include "mbedtls/x509_crl.h"
+#include "mbedtls/pk.h"
+#include "mbedtls/md.h"
+#include "mbedtls/pem.h"
+
+int crl_main(int argc, char** argv, int argi);
