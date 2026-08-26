@@ -245,6 +245,7 @@ usage:
 		
 		if(strcmp(p,"-help") == 0)
 		{
+			exit_code = MBEDTLS_EXIT_SUCCESS;
 			goto usage;
 		}
 		else if(strcmp(p,"-noout") == 0 && i + 1 < argc)

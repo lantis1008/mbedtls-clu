@@ -73,6 +73,7 @@ usage:
 		
 		if(strcmp(p,"help") == 0)
 		{
+			exit_code = MBEDTLS_EXIT_SUCCESS;
 			goto usage;
 		}
 		if(strcmp(p,"version") == 0)

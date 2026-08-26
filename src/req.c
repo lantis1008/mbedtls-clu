@@ -322,6 +322,7 @@ usage:
 		
 		if(strcmp(p,"-help") == 0)
 		{
+			exit_code = MBEDTLS_EXIT_SUCCESS;
 			goto usage;
 		}
 		else if(strcmp(p,"-batch") == 0 || strcmp(p,"-utf8") == 0 || strcmp(p,"-nodes") == 0 || strcmp(p,"-noenc") == 0)
